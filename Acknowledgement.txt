@@ -1,0 +1,9 @@
+The method used for retrieving the reviews is taken from Review Scraper:
+
+http://www.didev-studios.com/?p=11
+http://code.google.com/p/reviewscraper/
+
+by Didev Studios:
+
+http://www.didev-studios.com/
+
