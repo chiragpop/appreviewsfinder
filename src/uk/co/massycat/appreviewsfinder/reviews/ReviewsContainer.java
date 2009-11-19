@@ -57,6 +57,7 @@ import uk.co.massycat.appreviewsfinder.google.Translator;
  */
 public class ReviewsContainer extends JPanel implements Scrollable, ChangeListener, TranslationButtonListener {
 
+    private static final int GOOGLE_CHARACTER_LIMIT = 220;
     List<AppReview> mReviews = null;
     String mGoogleCode;
     static final Dimension mReviewSize;
@@ -119,6 +120,72 @@ public class ReviewsContainer extends JPanel implements Scrollable, ChangeListen
         return false;
     }
 
+    private String splitAndTranslateFurther(String the_string, String last_split_string, String trans_code) {
+        String next_split = null;
+        String[] split_strings;
+
+        if ( last_split_string.equals("\n")) {
+            // next split by sentence
+            next_split = ".";
+        }
+        else if ( last_split_string.equals(".")) {
+            // next split by word
+            next_split = " ";
+        }
+
+        if ( next_split == null) {
+            // just split be length
+            next_split = "";
+
+            int num_splits = (the_string.length() + GOOGLE_CHARACTER_LIMIT - 1) / GOOGLE_CHARACTER_LIMIT;
+            split_strings = new String[num_splits];
+
+            for ( int i = 0; i < num_splits; i++) {
+                if ( i == num_splits - 1) {
+                    split_strings[i] = the_string.substring(i * GOOGLE_CHARACTER_LIMIT);
+                }
+                else {
+                    split_strings[i] = the_string.substring(i * GOOGLE_CHARACTER_LIMIT, (i + 1) * GOOGLE_CHARACTER_LIMIT);
+                }
+            }
+        }
+        else {
+            String regx_split = " ";
+
+            if ( next_split.equals(".")) {
+                regx_split = "\\.";
+            }
+            split_strings = the_string.split(regx_split);
+        }
+
+        return translateStringArray(split_strings, next_split, trans_code);
+    }
+
+    private String translateStringArray(String[] the_strings, String split_string, String trans_code) {
+        String trans_string = new String();
+
+        for (int index = 0; index < the_strings.length; index++) {
+            String the_string = the_strings[index];
+
+            if (the_string.length() == 0) {
+                trans_string += split_string;
+            } else {
+                if (the_string.length() > GOOGLE_CHARACTER_LIMIT) {
+                    // need to split further
+                    trans_string += splitAndTranslateFurther(the_string, split_string, trans_code) + split_string;
+                } else {
+                    String transed_bit = Translator.translate(the_string, mGoogleCode, trans_code);
+
+                    if (transed_bit != null) {
+                        trans_string += transed_bit + split_string;
+                    }
+                }
+            }
+        }
+
+        return trans_string;
+    }
+
     /*
      * End of Scrollable interface
      */
@@ -136,18 +203,32 @@ public class ReviewsContainer extends JPanel implements Scrollable, ChangeListen
 
             String trans_country = AppPreferences.getPreferences().getTranslationCountry();
 
-            if ( !(trans_country.equals(review.mTransCountry) && review.mTranslation != null)) {
+            if (!(trans_country.equals(review.mTransCountry) && review.mTranslation != null)) {
                 // need to get the review
                 String trans_code = CountriesManager.getManager().getGoogleCodeForCountry(trans_country);
                 review.mTransCountry = trans_country;
-                review.mTranslation = Translator.translate(review.mReview, mGoogleCode, trans_code);
+
+                String transed_review;
+                if (review.mReview.length() > GOOGLE_CHARACTER_LIMIT) {
+                    //
+                    // split the review to cope with the AJAX language api character limit.
+                    //
+                    transed_review = new String();
+
+                    // split the string by paragraphs
+                    String[] paragraphs = review.mReview.split("\n");
+
+                    transed_review = translateStringArray(paragraphs, "\n", trans_code);
+                } else {
+                    transed_review = Translator.translate(review.mReview, mGoogleCode, trans_code);
+                }
+                review.mTranslation = transed_review;
             }
 
             if (review.mTranslation != null) {
                 review_panel.getReviewArea().setText(review.mTranslation);
                 trans_button.setText(ReviewPanel.ORIGINAL_STRING);
-            }
-            else {
+            } else {
                 JOptionPane.showMessageDialog(this.getRootPane(), "Failed to retrieve translation",
                         "Translation error", JOptionPane.WARNING_MESSAGE);
             }

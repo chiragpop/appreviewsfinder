@@ -59,6 +59,15 @@ public class AppReviewXMLHandler {
     static final public String REVIEW_TAG = "review";
     private List<AppReview> mReviews;
 
+    static final private String[] mClearCharacterTags = {
+        TITLE_TAG,
+        AUTHOR_TAG,
+        DATE_TAG,
+        VERSION_TAG,
+        RATING_TAG,
+        REVIEW_TAG
+    };
+
     class XmlReader extends DefaultHandler {
 
         private AppReview mCurrentReview;
@@ -73,7 +82,18 @@ public class AppReviewXMLHandler {
             if (qName.equals(APP_REVIEW_TAG)) {
                 mCurrentReview = new AppReview();
             } else {
-                mCharacters.setLength(0);
+                boolean clear_characters = false;
+
+                for ( int i = 0; i < mClearCharacterTags.length; i++) {
+                    if ( qName.equals(mClearCharacterTags[i])) {
+                        clear_characters = true;
+                        break;
+                    }
+                }
+
+                if ( clear_characters) {
+                    mCharacters.setLength(0);
+                }
             }
         }
 
@@ -82,6 +102,10 @@ public class AppReviewXMLHandler {
                 String localName,
                 String qName)
                 throws SAXException {
+            if ( qName.equals("br")) {
+                mCharacters.append("\n");
+            }
+            else {
             String characters = null;
             if ( mCharacters.length() > 0) {
                 characters = mCharacters.toString();
@@ -111,6 +135,7 @@ public class AppReviewXMLHandler {
             }
             else if ( qName.equals(RATING_TAG)) {
                 mCurrentReview.mRatings = Float.parseFloat(characters);
+            }
             }
         }
 
