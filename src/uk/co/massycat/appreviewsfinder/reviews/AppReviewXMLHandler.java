@@ -30,7 +30,9 @@
 package uk.co.massycat.appreviewsfinder.reviews;
 
 import java.io.File;
-import java.io.FileReader;
+import java.io.FileInputStream;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -110,10 +112,10 @@ public class AppReviewXMLHandler {
             if ( mCharacters.length() > 0) {
                 characters = mCharacters.toString();
 
-                try {
-                    characters = new String(characters.getBytes(), "UTF-8");
-                }
-                catch ( Exception e) {}
+//                try {
+//                    characters = new String(characters.getBytes(), "UTF-8");
+//                }
+//                catch ( Exception e) {}
             }
             if (qName.equals(APP_REVIEW_TAG)) {
                 mReviews.add(mCurrentReview);
@@ -154,7 +156,10 @@ public class AppReviewXMLHandler {
 
         try {
             SAXParser xml_parser = SAXParserFactory.newInstance().newSAXParser();
-            xml_parser.parse(new InputSource(new FileReader(reviews_xml)), new XmlReader());
+            //xml_parser.parse(new InputSource(new FileReader(reviews_xml)), new XmlReader());
+            InputStream input_stream = new FileInputStream(reviews_xml);
+            InputStreamReader input_reader = new InputStreamReader( input_stream, "UTF8");
+            xml_parser.parse( new InputSource(input_reader), new XmlReader());
         } catch (Exception e) {
         }
 

@@ -36,6 +36,7 @@
 
 package uk.co.massycat.appreviewsfinder.reviews;
 
+import java.awt.Font;
 import uk.co.massycat.appreviewsfinder.*;
 import javax.swing.JButton;
 
@@ -66,14 +67,28 @@ public class ReviewPanel extends javax.swing.JPanel {
         return mTranslateButton;
     }
 
+    private void setupFont() {
+        // set the font to sans serif
+        Font sans_serif = new Font( Font.SANS_SERIF, Font.PLAIN, 14);
+        Font sans_serif_bold = new Font( Font.SANS_SERIF, Font.BOLD, 14);
+
+        mTitle.setFont(sans_serif_bold);
+        mSubTitle.setFont(sans_serif_bold);
+        mReviewTextArea.setFont(sans_serif);
+    }
+
     /** Creates new form ReviewPanel */
     public ReviewPanel() {
         mTransListener = null;
         initComponents();
+
+        //setupFont();
     }
     public ReviewPanel( TranslationButtonListener trans_listener) {
         mTransListener = trans_listener;
         initComponents();
+
+        //setupFont();
     }
 
     public javax.swing.JLabel getTitleLabel() {
