@@ -35,6 +35,7 @@ import java.awt.Container;
 import java.awt.Dimension;
 import java.awt.Rectangle;
 import java.net.URL;
+import java.util.LinkedList;
 import java.util.List;
 import javax.swing.Icon;
 import javax.swing.ImageIcon;
@@ -119,43 +120,92 @@ public class ReviewsContainer extends JPanel implements Scrollable, ChangeListen
     public boolean getScrollableTracksViewportHeight() {
         return false;
     }
+    /*
+     * End of Scrollable interface
+     */
+    //
+    //
+    //
+    private static final String STARTING_TRANSLATION_SPLIT = "starting";
 
-    private String splitAndTranslateFurther(String the_string, String last_split_string, String trans_code) {
+    private String splitAndTranslate(String the_string, String last_split_string, String trans_code) {
         String next_split = null;
         String[] split_strings;
 
-        if ( last_split_string.equals("\n")) {
+        if (last_split_string.equals(STARTING_TRANSLATION_SPLIT)) {
+            // starting, split by paragraph
+            next_split = "\n";
+        } else if (last_split_string.equals("\n")) {
             // next split by sentence
             next_split = ".";
-        }
-        else if ( last_split_string.equals(".")) {
+        } else if (last_split_string.equals(".")) {
             // next split by word
             next_split = " ";
         }
 
-        if ( next_split == null) {
+        if (next_split == null) {
             // just split be length
             next_split = "";
 
             int num_splits = (the_string.length() + GOOGLE_CHARACTER_LIMIT - 1) / GOOGLE_CHARACTER_LIMIT;
             split_strings = new String[num_splits];
 
-            for ( int i = 0; i < num_splits; i++) {
-                if ( i == num_splits - 1) {
+            for (int i = 0; i < num_splits; i++) {
+                if (i == num_splits - 1) {
                     split_strings[i] = the_string.substring(i * GOOGLE_CHARACTER_LIMIT);
-                }
-                else {
+                } else {
                     split_strings[i] = the_string.substring(i * GOOGLE_CHARACTER_LIMIT, (i + 1) * GOOGLE_CHARACTER_LIMIT);
                 }
             }
-        }
-        else {
-            String regx_split = " ";
+        } else {
+            String regx_split = next_split;
 
-            if ( next_split.equals(".")) {
+            if (next_split.equals(".")) {
                 regx_split = "\\.";
             }
-            split_strings = the_string.split(regx_split);
+            String[] temp_split_strings = the_string.split(regx_split);
+
+            if (next_split.equals("\n")) {
+                split_strings = temp_split_strings;
+            } else {
+                // merge the split_strings to make long strings to save Googling time
+                LinkedList<String> merged_list = new LinkedList<String>();
+
+                int current_char_count = 0;
+                String current_string = null;
+                for (int i = 0; i < temp_split_strings.length; i++) {
+                    String split_string = temp_split_strings[i];
+
+                    // the + 1 is for the split character
+                    if (current_char_count + split_string.length() + 1 < GOOGLE_CHARACTER_LIMIT) {
+                        // there is room for the current string
+                        if (current_string == null) {
+                            current_string = split_string;
+                        } else {
+                            current_string += next_split + split_string;
+                        }
+                        current_char_count += split_string.length() + 1;
+                    } else {
+                        // string is as long as it can be
+                        if (current_string != null) {
+                            merged_list.add(current_string);
+                        }
+                        current_string = split_string;
+                        current_char_count = split_string.length();
+                    }
+                }
+
+                if (current_string != null) {
+                    // add the left over
+                    merged_list.add(current_string);
+                }
+
+                split_strings = new String[merged_list.size()];
+
+                for (int i = 0; i < split_strings.length; i++) {
+                    split_strings[i] = merged_list.get(i);
+                }
+            }
         }
 
         return translateStringArray(split_strings, next_split, trans_code);
@@ -172,7 +222,7 @@ public class ReviewsContainer extends JPanel implements Scrollable, ChangeListen
             } else {
                 if (the_string.length() > GOOGLE_CHARACTER_LIMIT) {
                     // need to split further
-                    trans_string += splitAndTranslateFurther(the_string, split_string, trans_code) + split_string;
+                    trans_string += splitAndTranslate(the_string, split_string, trans_code) + split_string;
                 } else {
                     String transed_bit = Translator.translate(the_string, mGoogleCode, trans_code);
 
@@ -186,9 +236,6 @@ public class ReviewsContainer extends JPanel implements Scrollable, ChangeListen
         return trans_string;
     }
 
-    /*
-     * End of Scrollable interface
-     */
     public void translationRequested(ReviewPanel review_panel) {
         // do the translation switch
         JButton trans_button = review_panel.getTranslateButton();
@@ -213,12 +260,7 @@ public class ReviewsContainer extends JPanel implements Scrollable, ChangeListen
                     //
                     // split the review to cope with the AJAX language api character limit.
                     //
-                    transed_review = new String();
-
-                    // split the string by paragraphs
-                    String[] paragraphs = review.mReview.split("\n");
-
-                    transed_review = translateStringArray(paragraphs, "\n", trans_code);
+                    transed_review = splitAndTranslate(review.mReview, STARTING_TRANSLATION_SPLIT, trans_code);
                 } else {
                     transed_review = Translator.translate(review.mReview, mGoogleCode, trans_code);
                 }
