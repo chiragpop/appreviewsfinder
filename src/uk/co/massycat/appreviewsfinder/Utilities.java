@@ -42,6 +42,17 @@ import java.net.URL;
 public class Utilities {
 
     static final String kWindows = "Windows";
+    static final String kMacOsX = "Mac OS X";
+
+    static public boolean isMacOSX() {
+        boolean is_os_x = false;
+
+        String os_name = System.getProperty("os.name");
+
+        is_os_x = os_name.compareToIgnoreCase(kMacOsX) == 0;
+
+        return is_os_x;
+    }
 
     static public boolean isWindowsOS() {
         boolean windows = false;

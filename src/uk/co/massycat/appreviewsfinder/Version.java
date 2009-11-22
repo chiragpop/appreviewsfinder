@@ -35,5 +35,5 @@ package uk.co.massycat.appreviewsfinder;
  * @author ben
  */
 public class Version {
-    public static final String VERSION_STRING = "0.9.4";
+    public static final String VERSION_STRING = "1.0";
 }

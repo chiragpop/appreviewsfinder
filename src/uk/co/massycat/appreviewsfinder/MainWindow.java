@@ -94,6 +94,23 @@ public class MainWindow extends javax.swing.JFrame {
     File mAppsDir = null;
     private RatingsPanel mRatingsPanel = new RatingsPanel();
 
+    private DefaultMutableTreeNode getAncestorAppEntryNode(DefaultMutableTreeNode node) {
+        DefaultMutableTreeNode app_entry_node = null;
+
+        while (node != null) {
+            Object user_obj = node.getUserObject();
+
+            if (user_obj instanceof AppEntry) {
+                app_entry_node = node;
+                break;
+            } else {
+                node = (DefaultMutableTreeNode) node.getParent();
+            }
+        }
+
+        return app_entry_node;
+    }
+
     private void setupUI() {
         DefaultMutableTreeNode node = (DefaultMutableTreeNode) mAppsTree.getLastSelectedPathComponent();
 
@@ -104,23 +121,26 @@ public class MainWindow extends javax.swing.JFrame {
             mGetLatestReviewsMenuItem.setEnabled(false);
             mGetRatingsMenuItem.setEnabled(false);
             mExportMenu.setEnabled(false);
+            mShowAppDirMenuItem.setEnabled(false);
+
             return;
         }
 
-        Object user_obj = node.getUserObject();
-
-        if (user_obj instanceof AppEntry) {
+        DefaultMutableTreeNode app_entry_node = getAncestorAppEntryNode(node);
+        if (app_entry_node != null) {
             mDeleteAppMenuItem.setEnabled(true);
             mGetReviewsMenuItem.setEnabled(true);
             mGetLatestReviewsMenuItem.setEnabled(true);
             mGetRatingsMenuItem.setEnabled(true);
             mExportMenu.setEnabled(true);
+            mShowAppDirMenuItem.setEnabled(true);
         } else {
             mDeleteAppMenuItem.setEnabled(false);
             mGetReviewsMenuItem.setEnabled(false);
             mGetLatestReviewsMenuItem.setEnabled(false);
             mGetRatingsMenuItem.setEnabled(false);
             mExportMenu.setEnabled(false);
+            mShowAppDirMenuItem.setEnabled(false);
         }
     }
 
@@ -196,7 +216,7 @@ public class MainWindow extends javax.swing.JFrame {
     //
     //
     private void getReviews(boolean latest_only) {
-        DefaultMutableTreeNode node = (DefaultMutableTreeNode) mAppsTree.getLastSelectedPathComponent();
+        DefaultMutableTreeNode node = getAncestorAppEntryNode((DefaultMutableTreeNode) mAppsTree.getLastSelectedPathComponent());
 
         if (node == null) {
             return;
@@ -243,6 +263,9 @@ public class MainWindow extends javax.swing.JFrame {
             if (downloader.isAlive()) {
                 downloader.interrupt();
             }
+
+            // expand the node to see what was downloaded
+            mAppsTree.expandPath(new TreePath(model.getPathToRoot(node)));
         }
     }
     //
@@ -257,6 +280,10 @@ public class MainWindow extends javax.swing.JFrame {
         //mReviewsPanel = new ReviewsContainer();
         JViewport reviews_viewport = mReviewsScrollPane.getViewport();
         reviews_viewport.addChangeListener(mReviewsPanel);
+
+        if (!(Utilities.isMacOSX() || Utilities.isWindowsOS())) {
+            mFileMenu.remove(mShowAppDirMenuItem);
+        }
     }
 
     /** This method is called from within the constructor to
@@ -281,6 +308,7 @@ public class MainWindow extends javax.swing.JFrame {
         mGetReviewsMenuItem = new javax.swing.JMenuItem();
         mGetLatestReviewsMenuItem = new javax.swing.JMenuItem();
         mGetRatingsMenuItem = new javax.swing.JMenuItem();
+        mShowAppDirMenuItem = new javax.swing.JMenuItem();
         jSeparator2 = new javax.swing.JSeparator();
         mDeleteAppMenuItem = new javax.swing.JMenuItem();
         jSeparator1 = new javax.swing.JSeparator();
@@ -367,6 +395,14 @@ public class MainWindow extends javax.swing.JFrame {
             }
         });
         mFileMenu.add(mGetRatingsMenuItem);
+
+        mShowAppDirMenuItem.setText("Show App's directory");
+        mShowAppDirMenuItem.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                mShowAppDirMenuItemActionPerformed(evt);
+            }
+        });
+        mFileMenu.add(mShowAppDirMenuItem);
         mFileMenu.add(jSeparator2);
 
         mDeleteAppMenuItem.setText("Delete App");
@@ -685,7 +721,7 @@ public class MainWindow extends javax.swing.JFrame {
     }//GEN-LAST:event_mGetReviewsMenuItemActionPerformed
 
     private void mDeleteAppMenuItemActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_mDeleteAppMenuItemActionPerformed
-        DefaultMutableTreeNode node = (DefaultMutableTreeNode) mAppsTree.getLastSelectedPathComponent();
+        DefaultMutableTreeNode node = getAncestorAppEntryNode((DefaultMutableTreeNode) mAppsTree.getLastSelectedPathComponent());
 
         if (node == null) {
             return;
@@ -763,7 +799,7 @@ public class MainWindow extends javax.swing.JFrame {
 
     private void mGetRatingsMenuItemActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_mGetRatingsMenuItemActionPerformed
         // Get some ratings
-        DefaultMutableTreeNode node = (DefaultMutableTreeNode) mAppsTree.getLastSelectedPathComponent();
+        DefaultMutableTreeNode node = getAncestorAppEntryNode((DefaultMutableTreeNode) mAppsTree.getLastSelectedPathComponent());
 
         if (node == null) {
             return;
@@ -856,7 +892,7 @@ public class MainWindow extends javax.swing.JFrame {
         // Export the ratings for the selected App as a csv file.
         //
         //
-        DefaultMutableTreeNode node = (DefaultMutableTreeNode) mAppsTree.getLastSelectedPathComponent();
+        DefaultMutableTreeNode node = getAncestorAppEntryNode((DefaultMutableTreeNode) mAppsTree.getLastSelectedPathComponent());
 
         if (node == null) {
             return;
@@ -927,6 +963,33 @@ public class MainWindow extends javax.swing.JFrame {
 
     }//GEN-LAST:event_mExportRatingsMenuItemActionPerformed
 
+    private void mShowAppDirMenuItemActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_mShowAppDirMenuItemActionPerformed
+        // Show the directory that contains the App's data files
+        DefaultMutableTreeNode node = getAncestorAppEntryNode((DefaultMutableTreeNode) mAppsTree.getLastSelectedPathComponent());
+
+        if (node == null) {
+            return;
+        }
+
+        AppEntry app_entry = (AppEntry)node.getUserObject();
+
+        String file_manager_cmd = null;
+        File app_dir = new File(mAppsDir, Integer.toString(app_entry.mAppCode));
+
+        if (Utilities.isMacOSX()) {
+            file_manager_cmd = "open " + app_dir.getPath();
+        } else if (Utilities.isWindowsOS()) {
+            file_manager_cmd = "Explorer.exe " + app_dir.getPath();
+        }
+
+        if (file_manager_cmd != null) {
+            try {
+                Runtime.getRuntime().exec(file_manager_cmd);
+            } catch (Exception e) {
+            }
+        }
+    }//GEN-LAST:event_mShowAppDirMenuItemActionPerformed
+
     /**
      * @param args the command line arguments
      */
@@ -972,6 +1035,7 @@ public class MainWindow extends javax.swing.JFrame {
     private javax.swing.JMenuItem mSetCountryReviews;
     private javax.swing.JMenuItem mSetSearchITunesMenuItem;
     private javax.swing.JMenuItem mSetTranslationLangMenuItem;
+    private javax.swing.JMenuItem mShowAppDirMenuItem;
     private javax.swing.JPanel mTopReviewsPanel;
     // End of variables declaration//GEN-END:variables
 }
