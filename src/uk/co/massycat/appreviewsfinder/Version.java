@@ -35,5 +35,15 @@ package uk.co.massycat.appreviewsfinder;
  * @author ben
  */
 public class Version {
-    public static final String VERSION_STRING = "1.0";
+    public static final int mMajor = 1;
+    public static final int mMinor = 0;
+    public static final int mSubMinor = 1;
+
+    public static String version() {
+        if ( mSubMinor > 0) {
+            return String.format("%d.%d.%d", mMajor, mMinor, mSubMinor);
+        }
+
+        return String.format("%d.%d", mMajor, mMinor);
+    }
 }

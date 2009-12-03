@@ -58,9 +58,11 @@ import java.io.FileOutputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.URL;
+import java.util.Collections;
 import java.util.Dictionary;
 import java.util.Enumeration;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeMap;
@@ -77,6 +79,7 @@ import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.TreePath;
 import javax.swing.tree.TreeSelectionModel;
 import uk.co.massycat.appreviewsfinder.apptree.CellRenderer;
+import uk.co.massycat.appreviewsfinder.apptree.entries.AppEntryNameComparator;
 import uk.co.massycat.appreviewsfinder.apptree.entries.CountryTreeEntry;
 import uk.co.massycat.appreviewsfinder.apptree.entries.VersionEntry;
 import uk.co.massycat.appreviewsfinder.countries.CountryEntry;
@@ -157,17 +160,18 @@ public class MainWindow extends javax.swing.JFrame {
     private void buildIntialTree() {
         File[] apps_files = mAppsDir.listFiles(Utilities.getDirsOnlyFileFilter());
 
-        DefaultTreeModel model = (DefaultTreeModel) mAppsTree.getModel();
-        DefaultMutableTreeNode root_node = new DefaultMutableTreeNode("Hello");
-        model.setRoot(root_node);
+        //
+        // Find the applications relating to the files
+        //
+        LinkedList<AppEntry> apps = new LinkedList<AppEntry>();
 
-        for (int i = 0; i < apps_files.length; i++) {
-            DefaultMutableTreeNode app_node = new MyTreeNode();
-
+        for ( int i = 0; i < apps_files.length; i++) {
+            //
             // build an app entry for this app id
+            //
             File app_dir = apps_files[i];
             AppEntry app = new AppEntry();
-
+            
             try {
                 app.mAppCode = Integer.parseInt(app_dir.getName());
 
@@ -182,31 +186,36 @@ public class MainWindow extends javax.swing.JFrame {
                 app.mArtist = reader.readLine();
                 reader.close();
 
-                app.mArt = new ImageIcon(new File(app_dir, Constants.APP_ICON_FILENAME).toURL());
-
-                app_node.setUserObject(app);
-                model.insertNodeInto(app_node, root_node, root_node.getChildCount());
+                app.mArt = new ImageIcon(new File(app_dir, Constants.APP_ICON_FILENAME).toURI().toURL());
 
                 File xml_file = new File(app_dir, Constants.APP_RATINGS_XML_FILENAME);
                 RatingsXMLHandler ratings_handler = new RatingsXMLHandler(xml_file);
                 app.mRatings = ratings_handler.getRatings();
-            } catch (Exception e) {
-            }
 
-//            if (added) {
-//                // find the known versions of the app
-//                File[] versions = app_dir.listFiles(new DirsOnlyFileFilter());
-//
-//                for (int j = 0; j < versions.length; j++) {
-//                    VersionEntry version = new VersionEntry();
-//                    version.mVersion = versions[j].getName();
-//                    DefaultMutableTreeNode version_node = new DefaultMutableTreeNode(version);
-//                    model.insertNodeInto(version_node, app_node, app_node.getChildCount());
-//
-//                }
-//            }
+                apps.add(app);
+            } catch (Exception e) {
+                // simply skip the app that caused the exception
+            }
         }
 
+        Collections.sort(apps, new AppEntryNameComparator());
+
+        DefaultTreeModel model = (DefaultTreeModel) mAppsTree.getModel();
+        DefaultMutableTreeNode root_node = new DefaultMutableTreeNode("Hello");
+        model.setRoot(root_node);
+
+
+        //
+        // Put the discovered apps into the tree
+        //
+        Iterator<AppEntry> iterator = apps.iterator();
+        while ( iterator.hasNext()) {
+            AppEntry app = iterator.next();
+            DefaultMutableTreeNode app_node = new MyTreeNode();
+            
+                app_node.setUserObject(app);
+                model.insertNodeInto(app_node, root_node, root_node.getChildCount());
+        }
 
         mAppsTree.expandPath(new TreePath(root_node));
     }
@@ -295,6 +304,7 @@ public class MainWindow extends javax.swing.JFrame {
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
 
+        jSplitPane1 = new javax.swing.JSplitPane();
         jPanel1 = new javax.swing.JPanel();
         jScrollPane1 = new javax.swing.JScrollPane();
         mAppsTree = new javax.swing.JTree();
@@ -357,7 +367,7 @@ public class MainWindow extends javax.swing.JFrame {
 
         jPanel1.add(jPanel3, java.awt.BorderLayout.SOUTH);
 
-        getContentPane().add(jPanel1, java.awt.BorderLayout.WEST);
+        jSplitPane1.setLeftComponent(jPanel1);
 
         mTopReviewsPanel.setLayout(new java.awt.BorderLayout());
 
@@ -368,7 +378,9 @@ public class MainWindow extends javax.swing.JFrame {
 
         mTopReviewsPanel.add(mReviewsScrollPane, java.awt.BorderLayout.CENTER);
 
-        getContentPane().add(mTopReviewsPanel, java.awt.BorderLayout.CENTER);
+        jSplitPane1.setRightComponent(mTopReviewsPanel);
+
+        getContentPane().add(jSplitPane1, java.awt.BorderLayout.CENTER);
 
         mFileMenu.setText("File");
 
@@ -565,7 +577,26 @@ public class MainWindow extends javax.swing.JFrame {
 
                     DefaultTreeModel model = (DefaultTreeModel) mAppsTree.getModel();
                     DefaultMutableTreeNode root_node = (DefaultMutableTreeNode) model.getRoot();
-                    model.insertNodeInto(app_node, root_node, 0);
+
+                    //
+                    // find where to insert the new app
+                    //
+                    int insert_index = 0;
+                    int child_count = root_node.getChildCount();
+
+                    for ( int i = 0; i < child_count; i++) {
+                        DefaultMutableTreeNode child_node = (DefaultMutableTreeNode)root_node.getChildAt(i);
+                        AppEntry child_app = (AppEntry)child_node.getUserObject();
+
+                        if ( AppEntryNameComparator.compareApps(app_entry, child_app) < 0) {
+                            // found the insert point
+                            break;
+                        }
+                        else {
+                            insert_index += 1;
+                        }
+                    }
+                    model.insertNodeInto(app_node, root_node, insert_index);
 
                     TreePath root_path = new TreePath(root_node);
 
@@ -610,8 +641,9 @@ public class MainWindow extends javax.swing.JFrame {
         JOptionPane.showMessageDialog(this,
                 "AppReviewsFinder downloads ratings and reviews of iPhone Apps\n" +
                 "from iTunes Stores around the world.\n" +
-                "Version " + Version.VERSION_STRING + "\n\n" +
-                "Any comments welcome, email appreviewsfinder@massycat.co.uk\n\n" +
+                "Version " + Version.version() + "\n\n" +
+                "Any comments welcome, email:\n\n" +
+                "appreviewsfinder@massycat.co.uk\n\n" +
                 "If you find AppReviewsFinder useful then please show\n" +
                 "your support by buying a copy of Flickmation on\n" +
                 "iPhone/iPod Touch.\n\n" +
@@ -1018,6 +1050,7 @@ public class MainWindow extends javax.swing.JFrame {
     private javax.swing.JScrollPane jScrollPane1;
     private javax.swing.JSeparator jSeparator1;
     private javax.swing.JSeparator jSeparator2;
+    private javax.swing.JSplitPane jSplitPane1;
     private javax.swing.JMenuItem mAboutMenuItem;
     private javax.swing.JButton mAddApplicationButton;
     private javax.swing.JTree mAppsTree;
