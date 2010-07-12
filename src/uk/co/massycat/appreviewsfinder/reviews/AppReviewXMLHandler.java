@@ -50,7 +50,6 @@ import uk.co.massycat.appreviewsfinder.Utilities;
  */
 public class AppReviewXMLHandler {
 
-    static final public String APP_REVIEWS_XML_FILE_SUFFIX = "_reviews.xml";
     static final public String APP_REVIEWS_TAG = "app-reviews";
     static final public String APP_REVIEW_TAG = "app-review";
     static final public String TITLE_TAG = "title";

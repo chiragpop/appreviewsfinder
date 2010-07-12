@@ -38,7 +38,6 @@ package uk.co.massycat.appreviewsfinder;
 import java.awt.BorderLayout;
 import uk.co.massycat.appreviewsfinder.countries.FromCountriesDownloaderProgressDialog;
 import uk.co.massycat.appreviewsfinder.reviews.ReviewPanel;
-import uk.co.massycat.appreviewsfinder.reviews.AppReviewXMLHandler;
 import uk.co.massycat.appreviewsfinder.reviews.AppReview;
 import uk.co.massycat.appreviewsfinder.reviews.ReviewsDownloader;
 import uk.co.massycat.appreviewsfinder.countries.CountriesManager;
@@ -87,6 +86,8 @@ import uk.co.massycat.appreviewsfinder.ratings.RatingsDownloader;
 import uk.co.massycat.appreviewsfinder.ratings.RatingsData;
 import uk.co.massycat.appreviewsfinder.ratings.RatingsPanel;
 import uk.co.massycat.appreviewsfinder.ratings.RatingsXMLHandler;
+import uk.co.massycat.appreviewsfinder.reviews.AppReviewsFilesBackedList;
+import uk.co.massycat.appreviewsfinder.reviews.AppReviewsUtils;
 
 /**
  *
@@ -695,10 +696,15 @@ public class MainWindow extends javax.swing.JFrame {
 
                 File app_dir = new File(mAppsDir, Integer.toString(app_entry.mAppCode));
                 File version_dir = new File(app_dir, version.mVersion);
-                File country_file = new File(version_dir, CountryTreeEntry.mCode +
-                        AppReviewXMLHandler.APP_REVIEWS_XML_FILE_SUFFIX);
-                AppReviewXMLHandler handler = new AppReviewXMLHandler(country_file);
-                List<AppReview> reviews = handler.getReviews();
+                //File country_file = new File(version_dir, CountryTreeEntry.mCode +
+                //        AppReviewXMLHandler.APP_REVIEWS_XML_FILE_SUFFIX);
+                //AppReviewXMLHandler handler = new AppReviewXMLHandler(country_file);
+                //List<AppReview> reviews = handler.getReviews();
+
+                //ArrayList<File> file_list = new ArrayList<File>(1);
+                //file_list.add(country_file);
+                File[] review_files = AppReviewsUtils.getReviewFilesForCountryInDirectory(CountryTreeEntry.mCode, version_dir);
+                List<AppReview> reviews = new AppReviewsFilesBackedList(review_files);
 
                 if (reviews.size() == 0) {
                     return;
@@ -710,6 +716,9 @@ public class MainWindow extends javax.swing.JFrame {
                     mReviewsScrollPane.getViewport().setViewPosition(new Point(0, 0));
                     mReviewsPanel.setReviews(reviews, CountryTreeEntry.mCode);
                 } else {
+                    //
+                    // OLD CODE, NO LONGER USED
+                    //
                     mReviewsPanel.removeAll();
                     mReviewsPanel.setLayout(new GridLayout(reviews.size(), 1));
                     Iterator<AppReview> iterator = reviews.iterator();

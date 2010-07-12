@@ -37,7 +37,7 @@ package uk.co.massycat.appreviewsfinder;
 public class Version {
     public static final int mMajor = 1;
     public static final int mMinor = 0;
-    public static final int mSubMinor = 1;
+    public static final int mSubMinor = 2;
 
     public static String version() {
         if ( mSubMinor > 0) {

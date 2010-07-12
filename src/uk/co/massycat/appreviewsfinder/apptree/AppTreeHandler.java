@@ -46,6 +46,7 @@ import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.ExpandVetoException;
 import uk.co.massycat.appreviewsfinder.apptree.entries.CountryTreeEntry;
+import uk.co.massycat.appreviewsfinder.reviews.AppReviewsUtils;
 
 /**
  *
@@ -55,17 +56,17 @@ public class AppTreeHandler implements TreeWillExpandListener {
 
     private JTree mTree;
 
-    private class CountryReviewsFileFilter implements FileFilter {
+    private class CountryCountsFileFilter implements FileFilter {
         public boolean accept(File pathname) {
             boolean accept = false;
             if ( pathname.isFile()) {
-                // accept files of the form xx_reviews.xml
+                // accept files of the form xx<kAppReviewsCountsSuffix>
                 String filename = pathname.getName();
 
-                if ( filename.length() == AppReviewXMLHandler.APP_REVIEWS_XML_FILE_SUFFIX.length() + 2) {
+                if ( filename.length() == AppReviewsUtils.kAppReviewsCountsSuffix.length() + 2) {
                     String end_string = filename.substring(2);
 
-                    if ( end_string.equals(AppReviewXMLHandler.APP_REVIEWS_XML_FILE_SUFFIX)) {
+                    if ( end_string.equals(AppReviewsUtils.kAppReviewsCountsSuffix)) {
                         accept = true;
                     }
                 }
@@ -119,7 +120,7 @@ public class AppTreeHandler implements TreeWillExpandListener {
             File app_dir = new File(apps_path, Integer.toString(app_entry.mAppCode));
             File version_dir = new File(app_dir, version_entry.mVersion);
 
-            File[] countries = version_dir.listFiles(new CountryReviewsFileFilter());
+            File[] countries = version_dir.listFiles(new CountryCountsFileFilter());
 
 
             CountriesManager manager = CountriesManager.getManager();
@@ -134,7 +135,7 @@ public class AppTreeHandler implements TreeWillExpandListener {
                     country.mCountry = manager.getCountryEntry(country_code);
 
                     // file the reviews count
-                    File review_count = new File(version_dir, country_code + "_counts.txt");
+                    File review_count = new File(version_dir, country_code + AppReviewsUtils.kAppReviewsCountsSuffix);
                     if ( review_count.exists()) {
                         try {
                             BufferedReader reader = new BufferedReader(new FileReader(review_count));
@@ -151,6 +152,9 @@ public class AppTreeHandler implements TreeWillExpandListener {
             }
         }
         else if (false) {
+            //
+            // FIXME: OLD CODE NOT USED
+            //
             AppEntry app_entry = (AppEntry) user_obj;
             String apps_path = AppPreferences.getPreferences().getAppsPath();
 

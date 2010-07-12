@@ -47,10 +47,27 @@ import uk.co.massycat.appreviewsfinder.countries.CountriesManager;
  * @author ben
  */
 public class ReviewsDownloader extends FromCountriesDownloader {
+
+    static final int kReviewsPerFile = 200;
     private File AppDir;
     private int mAppCode;
     private int mTotalReviews;
     private boolean mLatestOnly;
+
+    class CountReviewsPair {
+
+        public List<AppReview> mReviews;
+        public float mTotalRating;
+        public int mTotalReviewsCount;
+        public int mFilesCount;
+
+        public CountReviewsPair() {
+            mFilesCount = 0;
+            mTotalRating = 0.f;
+            mTotalReviewsCount = 0;
+            mReviews = new LinkedList<AppReview>();
+        }
+    }
 
     public int getCurrentTotal() {
         return mTotalReviews;
@@ -63,8 +80,31 @@ public class ReviewsDownloader extends FromCountriesDownloader {
         mLatestOnly = latest_only;
     }
 
+    private void saveOutReviews(CountReviewsPair version_info, File out_file) {
+        Iterator<AppReview> reviews_iter = version_info.mReviews.iterator();
+        StringBuffer reviews_xml = new StringBuffer();
+        AppReviewXMLHandler.startReviewsXml(reviews_xml);
+
+        while (reviews_iter.hasNext()) {
+            AppReview review = reviews_iter.next();
+            AppReviewXMLHandler.addReviewToXml(review, reviews_xml);
+        }
+
+        AppReviewXMLHandler.endReviewsXml(reviews_xml);
+
+        if (reviews_xml != null) {
+            try {
+                BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(out_file), "UTF8"));
+                writer.write(reviews_xml.toString());
+                writer.close();
+            } catch (Exception e) {
+            }
+        }
+    }
+
     protected void doWorkForCountry() {
-        Hashtable<String, LinkedList<AppReview>> reviews_by_version = new Hashtable<String, LinkedList<AppReview>>();
+        Hashtable<String, ReviewsDownloader.CountReviewsPair> reviews_by_version = new Hashtable<String, ReviewsDownloader.CountReviewsPair>();
+
         for (int page_num = 0; !mCauseExit; page_num++) {
             String http_request = "http://phobos.apple.com/WebObjects/MZStore.woa/wa/viewContentsUserReviews?sortOrdering=4&onlyLatestVersion=" + (mLatestOnly ? "true" : "false") + "&sortAscending=true&pageNumber=" + page_num + "&type=Purple+Software&id=" + mAppCode;
             int itunes_code = CountriesManager.getManager().getITunesCodeForCountry(mCurrentCode);
@@ -89,15 +129,43 @@ public class ReviewsDownloader extends FromCountriesDownloader {
             while (iterator.hasNext()) {
                 AppReview review = iterator.next();
 
-                LinkedList<AppReview> reviews_list = reviews_by_version.get(review.mVersion);
+                CountReviewsPair version_info = reviews_by_version.get(review.mVersion);
 
                 // create the version list if it has not been seen yet
-                if (reviews_list == null) {
-                    reviews_list = new LinkedList<AppReview>();
-                    reviews_by_version.put(review.mVersion, reviews_list);
+                if (version_info == null) {
+                    version_info = new CountReviewsPair();
+                    reviews_by_version.put(review.mVersion, version_info);
+
+                    // remove old review files
+                    File version_dir = new File(AppDir, review.mVersion);
+                    if (version_dir.exists()) {
+                        File[] review_files = AppReviewsUtils.getReviewFilesForCountryInDirectory(mCurrentCode, version_dir);
+
+                        for ( int i = 0; i < review_files.length; i++) {
+                            review_files[i].delete();
+                        }
+                    }
                 }
 
-                reviews_list.add(review);
+                version_info.mReviews.add(review);
+                version_info.mTotalReviewsCount += 1;
+                version_info.mTotalRating += review.mRatings;
+
+                if (version_info.mReviews.size() >= kReviewsPerFile) {
+                    // save the reviews out and clear the current reviews list
+                    File version_dir = new File(AppDir, review.mVersion);
+
+                    if (!version_dir.exists()) {
+                        version_dir.mkdir();
+                    }
+
+                    String file_name = AppReviewsUtils.makeReviewsFilename(mCurrentCode, version_info.mFilesCount);
+                    File save_file = new File(version_dir, file_name);
+                    saveOutReviews(version_info, save_file);
+
+                    version_info.mFilesCount += 1;
+                    version_info.mReviews.clear();
+                }
             }
         }
 
@@ -117,40 +185,21 @@ public class ReviewsDownloader extends FromCountriesDownloader {
                 version_dir.mkdir();
             }
 
-            List<AppReview> reviews_list = reviews_by_version.get(version);
-            Iterator<AppReview> reviews_iter = reviews_list.iterator();
-            StringBuffer reviews_xml = new StringBuffer();
-            float total_rating = 0.f;
-            int reviews_count = 0;
+            CountReviewsPair version_info = reviews_by_version.get(version);
 
-            AppReviewXMLHandler.startReviewsXml(reviews_xml);
-
-            while (reviews_iter.hasNext()) {
-                AppReview review = reviews_iter.next();
-
-                AppReviewXMLHandler.addReviewToXml(review, reviews_xml);
-
-                reviews_count += 1;
-                total_rating += review.mRatings;
+            if (version_info.mReviews.size() > 0) {
+                // save any remaining reviews
+                String file_name = AppReviewsUtils.makeReviewsFilename(mCurrentCode, version_info.mFilesCount);
+                File save_file = new File(version_dir, file_name);
+                saveOutReviews(version_info, save_file);
             }
-
-            AppReviewXMLHandler.endReviewsXml(reviews_xml);
-
-            if (reviews_xml != null) {
-                try {
-                    File file = new File(version_dir,
-                            mCurrentCode + AppReviewXMLHandler.APP_REVIEWS_XML_FILE_SUFFIX);
-                    BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), "UTF8"));
-                    writer.write(reviews_xml.toString());
-                    writer.close();
-
-                    file = new File(version_dir, mCurrentCode + "_counts.txt");
-                    writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), "UTF8"));
-                    writer.write(Integer.toString(reviews_count) + "\n");
-                    writer.write(Float.toString(total_rating / (float) reviews_count) + "\n");
-                    writer.close();
-                } catch (Exception e) {
-                }
+            try {
+                File file = new File(version_dir, mCurrentCode + AppReviewsUtils.kAppReviewsCountsSuffix);
+                BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), "UTF8"));
+                writer.write(Integer.toString(version_info.mTotalReviewsCount) + "\n");
+                writer.write(Float.toString(version_info.mTotalRating / (float) version_info.mTotalReviewsCount) + "\n");
+                writer.close();
+            } catch (Exception e) {
             }
         }
         reviews_by_version = null;
