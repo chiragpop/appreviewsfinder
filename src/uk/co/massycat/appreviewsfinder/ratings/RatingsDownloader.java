@@ -65,6 +65,12 @@ public class RatingsDownloader extends FromCountriesDownloader {
                 "&mt=8";
         String app_info = Utilities.connectAndGetResponse(search_url, Integer.toString(itunes_store) + "-1");
 
+        // iTunes now redirects us somewhere else
+        GotoURLFinder goto_finder = new GotoURLFinder(app_info);
+        if ( goto_finder.getGotoUrl() != null) {
+            app_info = Utilities.connectAndGetResponse(goto_finder.getGotoUrl(), Integer.toString(itunes_store) + "-1");
+        }
+
         AppRatingsFinder ratings_finder = new AppRatingsFinder(app_info);
 
         //System.out.println("Ratings from " + mManager.getNameForCountry(mCurrentCode));

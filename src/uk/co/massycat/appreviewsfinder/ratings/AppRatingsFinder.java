@@ -186,9 +186,9 @@ public class AppRatingsFinder {
     public static void main(String[] args) {
 
         //int itunes_id = 143442; // France
-        //int itunes_id = 143444; // UK
+        int itunes_id = 143444; // UK
         //int itunes_id = 143441; // USA
-        int itunes_id = 143462; // Japan
+        //int itunes_id = 143462; // Japan
         // This gets Flight Control info
         int app_code;
         int flickmation_app_code = 322312672;
@@ -201,6 +201,16 @@ public class AppRatingsFinder {
                 "&mt=8";
         String flight_info = Utilities.connectAndGetResponse(flight_control, Integer.toString(itunes_id) + "-1");
         System.out.println(flight_info);
+
+        //
+        // Need to find the goto link in what we got back.
+        //
+        GotoURLFinder goto_finder = new GotoURLFinder(flight_info);
+        System.out.println("Goto url is \"" + goto_finder.getGotoUrl() + "\"");
+        flight_info = Utilities.connectAndGetResponse(goto_finder.getGotoUrl(), Integer.toString(itunes_id) + "-1");
+        //String flight_control2 = "http://ax.itunes.apple.com/app/flight-control/id306220440?mt=8";
+        //String flight_info2 = Utilities.connectAndGetResponse(flight_control2, Integer.toString(itunes_id) + "-1");
+        //System.out.println(flight_info2);
 
         AppRatingsFinder ratings_finder = new AppRatingsFinder(flight_info);
 
